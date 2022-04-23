@@ -9,6 +9,8 @@ SoftwareSerial BT(6,10); // RX, TX
 #define TIMEOUT_MED 5
 #define TIMEOUT_FAST 2.5
 
+const int buttonPin = 9;
+int buttonState;
 int temp = 0;
 boolean miss_mode = false;
 int ovfl = 0;
@@ -17,7 +19,8 @@ boolean had_vibration = false;
 String tempStr = "";
 void setup() {
   String c;
-  
+  pinMode(buttonPin, INPUT);
+  buttonState = 0;
   Serial.begin(115200);
   BT.begin(115200);
   delay(100);
@@ -39,7 +42,12 @@ void setup() {
   TCCR1B |= 0b00000001;
   TIMSK1 &= 0b00000000;
   TCNT1 = 0;
+  //pcint1
+  PCICR |= 0b00000111;    // turn on all ports
+  PCMSK2 |= 0b00000100;
   sei();
+  
+  
   
 }
 
@@ -47,10 +55,16 @@ ISR(TIMER1_OVF_vect){
   ovfl++;
 }
 
+ISR(PCINT0_vect){
+  buttonState = 1;
+}
+
 
 void loop() {
   String c;
-
+  if(buttonState==1){
+      Serial.print("Button pressed\n");
+  }
   if (Serial.available()) {
     //c = Serial.readString();
     //BT.print(c);
@@ -74,6 +88,7 @@ void loop() {
         Serial.print("r\n");
         delay(10);
         timer = (TCNT1 + ovfl*65536)/16000; //time in ms
+        buttonState = digitalRead(buttonPin);
         if (timer > TIMEOUT_SLOW*1000){
           //BT.print(TIMEOUT_SLOW,"\n");
           TIMSK1 &= 0b00000000;
@@ -82,9 +97,9 @@ void loop() {
           Serial.print(timer);
           break;
         }
-        if(had_vibration){
+        if(buttonState=1){
+          timer+="\n";
           BT.print(timer);
-          BT.print("\n");
           TIMSK1 &= 0b00000000;
           break;
         }
